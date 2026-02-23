@@ -160,10 +160,10 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
     # Unable to parse the rest
     scr.addstr(text[i:], modifier)
 
-def print_result(r):
+def print_result(r: str):
     y, x = curses.getsyx()
-    stdscr.addstr(min(curses.LINES - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD | curses.A_REVERSE)
-    # print_highlighted(stdscr, str(r), min(curses.LINES - 1, len(text_buffer) + 1), curses.A_BOLD)
+    # FIXME account for lines that wrap
+    stdscr.addstr(max(curses.LINES - r.count("\n") - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD | curses.A_REVERSE)
     stdscr.move(y, x)
     curses.setsyx(y, x)
 
@@ -171,6 +171,9 @@ def run():
     def target():
         exec_code = "\n".join(text_buffer[:-1])
         eval_code = text_buffer[-1]
+        if eval_code.startswith(" "):
+            exec_code += "\n" + eval_code
+            eval_code = ""
         locs = default_locs.copy()
         f = StringIO()
         with redirect_stdout(f):
