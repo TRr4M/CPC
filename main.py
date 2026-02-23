@@ -1,4 +1,6 @@
 import os
+from io import StringIO
+from contextlib import redirect_stdout
 import curses
 import threading
 import math
@@ -37,7 +39,7 @@ C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 
 keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
     "pass", "continue", "break", "def", "local", "global", "nonlocal", "return",
-    "and", "or"}
+    "and", "or", "as"}
 ops = set("*()-+=[]{},.<>/:|&")
 bools = {"True", "False", "None", "not"}
 valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
@@ -63,7 +65,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                 if i < len(text):
                     scr.addstr(text[i], modifier | C_SPECIAL)
                     i += 1
-                    j = i + 1
+                    j = i
                 else:
                     j = i
             else:
@@ -160,23 +162,26 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
 def print_result(r):
     y, x = curses.getsyx()
-    stdscr.addstr(min(curses.LINES - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD)
+    stdscr.addstr(min(curses.LINES - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD | curses.A_REVERSE)
     # print_highlighted(stdscr, str(r), min(curses.LINES - 1, len(text_buffer) + 1), curses.A_BOLD)
     stdscr.move(y, x)
     curses.setsyx(y, x)
 
 def run():
     def target():
-        try:
-            exec_code = "\n".join(text_buffer[:-1])
-            eval_code = text_buffer[-1]
-            locs = default_locs.copy()
-            exec(exec_code, locals=locs, globals=locs)
-            r = eval(eval_code, locals=locs)
-        except Exception as e:
-            print_result(f"({e})")
-        else:
-            print_result(r)
+        exec_code = "\n".join(text_buffer[:-1])
+        eval_code = text_buffer[-1]
+        locs = default_locs.copy()
+        f = StringIO()
+        with redirect_stdout(f):
+            try:
+                exec(exec_code, locals=locs, globals=locs)
+                if len(eval_code) > 0:
+                    r = eval(eval_code, locals=locs)
+                    print(r)
+            except Exception as e:
+                print(f"({e})")
+        print_result(f.getvalue())
     thread = threading.Thread(target=target)
     thread.start()
 
