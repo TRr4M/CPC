@@ -4,6 +4,7 @@ import threading
 import math
 
 stdscr = curses.initscr()
+curses.start_color()
 curses.cbreak()
 
 os.system("clear")
@@ -13,9 +14,64 @@ thread: None | threading.Thread = None
 
 default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil"]}
 
+curses.init_pair(1, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+C_KEYWORD = curses.color_pair(1)
+curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+C_CLASS = curses.color_pair(2)
+curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
+C_VAR = curses.color_pair(3)
+curses.init_pair(4, curses.COLOR_WHITE, curses.COLOR_BLACK)
+C_OP = curses.color_pair(4)
+curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+C_FUNC = curses.color_pair(5)
+curses.init_pair(6, curses.COLOR_RED, curses.COLOR_BLACK)
+C_STR = curses.color_pair(6)
+curses.init_pair(7, curses.COLOR_CYAN, curses.COLOR_BLACK)
+C_NUM = curses.color_pair(7)
+curses.init_pair(8, curses.COLOR_BLUE, curses.COLOR_BLACK)
+C_BOOL = curses.color_pair(8)
+curses.init_pair(9, curses.COLOR_BLUE, curses.COLOR_BLACK)
+C_SPECIAL = curses.color_pair(9)
+curses.init_pair(10, curses.COLOR_GREEN, curses.COLOR_BLACK)
+C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
+
+keywords = ["import", "in", "for", "if", "while", "else", "elif", "try", "except",
+    "pass", "continue", "break", "def", "local", "global", "nonlocal"]
+ops = list("*()-+=[]{},.<>/:|&")
+bools = ["True", "False", "None", "not"]
+
+def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
+    i = 0
+
+    def string():
+        nonlocal i
+        start_char = text[i]
+        j = i + 1
+        while text[j] != start_char:
+            if text[j] == "\\":
+                # FIXME highlight special differently
+                j += 2
+            else:
+                j += 1
+        j += 1
+        scr.addstr(text[i:j], modifier | C_STR)
+        i = j
+
+    def default():
+        nonlocal i
+        while i < len(text):
+            if text[i] in " \n\t":
+                scr.addstr(text[i], modifier)
+                i += 1
+                continue
+
+
+    default()
+
 def print_result(r):
     y, x = curses.getsyx()
-    stdscr.addstr(min(curses.LINES - 1, len(text_buffer) + 1), 0, str(r))
+    stdscr.addstr(min(curses.LINES - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD)
+    # print_highlighted(stdscr, str(r), min(curses.LINES - 1, len(text_buffer) + 1), curses.A_BOLD)
     stdscr.move(y, x)
     curses.setsyx(y, x)
 
@@ -40,7 +96,8 @@ def main(stdscr: curses.window):
 
     def re_render():
         stdscr.clear()
-        stdscr.addstr(0, 0, "\n".join([i[:curses.COLS] for i in text_buffer]))
+        # stdscr.addstr(0, 0, "\n".join([i[:curses.COLS] for i in text_buffer]))
+        print_highlighted(stdscr, "\n".join([i[:curses.COLS] for i in text_buffer]))
         stdscr.move(y, min(x, curses.COLS - 1))
         curses.setsyx(y, min(x, curses.COLS - 1))
         stdscr.refresh()
@@ -112,5 +169,3 @@ try:
     curses.wrapper(main)
 except:
     pass
-
-print(text_buffer)
