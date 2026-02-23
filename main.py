@@ -35,19 +35,22 @@ C_SPECIAL = curses.color_pair(9)
 curses.init_pair(10, curses.COLOR_GREEN, curses.COLOR_BLACK)
 C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 
-keywords = ["import", "in", "for", "if", "while", "else", "elif", "try", "except",
-    "pass", "continue", "break", "def", "local", "global", "nonlocal"]
-ops = list("*()-+=[]{},.<>/:|&")
-bools = ["True", "False", "None", "not"]
+keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
+    "pass", "continue", "break", "def", "local", "global", "nonlocal", "return"}
+ops = set("*()-+=[]{},.<>/:|&")
+bools = {"True", "False", "None", "not"}
+valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
+valid_name_chars = valid_name_start.union(set("0123456789"))
 
 def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
     i = 0
+    class_names: set[str] = set()
 
     def string():
         nonlocal i
         start_char = text[i]
         j = i + 1
-        while text[j] != start_char:
+        while j < len(text) and text[j] != start_char:
             if text[j] == "\\":
                 # FIXME highlight special differently
                 j += 2
@@ -57,16 +60,86 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
         scr.addstr(text[i:j], modifier | C_STR)
         i = j
 
-    def default():
+    def default(end=None):
         nonlocal i
-        while i < len(text):
+        while i < len(text) and text[i] != end:
+            # Whitespace
             if text[i] in " \n\t":
                 scr.addstr(text[i], modifier)
                 i += 1
                 continue
 
+            # Numbers
+            if text[i] in "0123456789":
+                j = i
+                while j < len(text) and text[j] in "0123456789.":
+                    j += 1
+                scr.addstr(text[i:j], modifier | C_NUM)
+                i = j
+                continue
+
+            # Strings
+            if text[i] == '"' or text[i] == "'":
+                string()
+                continue
+
+            # Ops
+            cut_text = text[i:]
+            found_op = False
+            for op in ops:
+                if cut_text.startswith(op):
+                    scr.addstr(op, modifier | C_OP)
+                    i += len(op)
+                    found_op = True
+                    break
+            if found_op:
+                continue
+
+            if text[i] in valid_name_start:
+                word = ""
+                while i < len(text) and text[i] in valid_name_chars:
+                    word += text[i]
+                    i += 1
+
+                # Keywords
+                if word in keywords:
+                    scr.addstr(word, modifier | C_KEYWORD)
+                    continue
+
+                # Bools
+                if word in bools:
+                    scr.addstr(word, modifier | C_BOOL)
+                    continue
+
+                # Functions
+                if i < len(text) and text[i] == "(":
+                    scr.addstr(word, modifier | C_FUNC)
+                    continue
+
+                # Classes
+                if word in class_names:
+                    scr.addstr(word, modifier | C_CLASS)
+                    continue
+
+                # Variables
+                scr.addstr(word, modifier | C_VAR)
+                continue
+
+            # Comments
+            if text[i] == "#":
+                j = i
+                while j < len(text) and text[j] != "\n":
+                    j += 1
+                j += 1
+                scr.addstr(text[i:j], modifier | C_COMMENT)
+                i = j
+                continue
+
+            break
 
     default()
+    # Unable to parse the rest
+    scr.addstr(text[i:], modifier)
 
 def print_result(r):
     y, x = curses.getsyx()
@@ -152,6 +225,9 @@ def main(stdscr: curses.window):
                     y -= 1
                     x = len(text_buffer[y])
                     text_buffer[y] += l
+            elif text_buffer[y][((x-1)//4)*4:x].replace(" ", "") == "":
+                text_buffer[y] = text_buffer[y][0:((x-1)//4)*4] + text_buffer[y][x:]
+                x = ((x-1)//4)*4
             else:
                 text_buffer[y] = text_buffer[y][0:x - 1] + text_buffer[y][x:]
                 x -= 1
@@ -161,11 +237,11 @@ def main(stdscr: curses.window):
                     text_buffer[y] += text_buffer.pop(y + 1)
             else:
                 text_buffer[y] = text_buffer[y][0:x] + text_buffer[y][x + 1:]
+        elif c == ord("\t"):
+            text_buffer[y] = text_buffer[y][0:x] + "    " + text_buffer[y][x:]
+            x += 4
         else:
             text_buffer[y] = text_buffer[y][0:x] + chr(c) + text_buffer[y][x:]
             x += 1
 
-try:
-    curses.wrapper(main)
-except:
-    pass
+curses.wrapper(main)
