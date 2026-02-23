@@ -171,10 +171,10 @@ def run():
             exec_code = "\n".join(text_buffer[:-1])
             eval_code = text_buffer[-1]
             locs = default_locs.copy()
-            exec(exec_code, locals=locs)
+            exec(exec_code, locals=locs, globals=locs)
             r = eval(eval_code, locals=locs)
-        except:
-            print_result("(error)")
+        except Exception as e:
+            print_result(f"({e})")
         else:
             print_result(r)
     thread = threading.Thread(target=target)
