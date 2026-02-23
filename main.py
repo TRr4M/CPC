@@ -12,7 +12,7 @@ os.system("clear")
 text_buffer = [""]
 thread: None | threading.Thread = None
 
-default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil"]}
+default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e"]}
 
 curses.init_pair(1, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
 C_KEYWORD = curses.color_pair(1)
@@ -36,7 +36,8 @@ curses.init_pair(10, curses.COLOR_GREEN, curses.COLOR_BLACK)
 C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 
 keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
-    "pass", "continue", "break", "def", "local", "global", "nonlocal", "return"}
+    "pass", "continue", "break", "def", "local", "global", "nonlocal", "return",
+    "and", "or"}
 ops = set("*()-+=[]{},.<>/:|&")
 bools = {"True", "False", "None", "not"}
 valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
@@ -46,7 +47,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
     i = 0
     class_names: set[str] = set()
 
-    def string():
+    def string(fstring: bool = False):
         nonlocal i
         start_char = text[i]
         j = i + 1
@@ -54,6 +55,17 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
             if text[j] == "\\":
                 # FIXME highlight special differently
                 j += 2
+            elif text[j] == "{" and fstring:
+                scr.addstr(text[i:j], modifier | C_STR)
+                scr.addstr(text[j], modifier | C_SPECIAL)
+                i = j + 1
+                default("}")
+                if i < len(text):
+                    scr.addstr(text[i], modifier | C_SPECIAL)
+                    i += 1
+                    j = i + 1
+                else:
+                    j = i
             else:
                 j += 1
         j += 1
@@ -81,6 +93,11 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
             # Strings
             if text[i] == '"' or text[i] == "'":
                 string()
+                continue
+            if i < len(text) - 1 and (text[i:i+2] == "f'" or text[i:i+2] == 'f"'):
+                scr.addstr("f", modifier | C_SPECIAL)
+                i += 1
+                string(True)
                 continue
 
             # Ops
@@ -157,7 +174,7 @@ def run():
             exec(exec_code, locals=locs)
             r = eval(eval_code, locals=locs)
         except:
-            pass # print_result("FAILED")
+            print_result("(error)")
         else:
             print_result(r)
     thread = threading.Thread(target=target)
