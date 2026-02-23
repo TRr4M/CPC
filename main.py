@@ -1,20 +1,17 @@
-import os
 from io import StringIO
 from contextlib import redirect_stdout
 import curses
 import threading
 import math
 
+default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e"]}
+
 stdscr = curses.initscr()
 curses.start_color()
 curses.cbreak()
 
-os.system("clear")
-
 text_buffer = [""]
 thread: None | threading.Thread = None
-
-default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e"]}
 
 curses.init_pair(1, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
 C_KEYWORD = curses.color_pair(1)
@@ -39,7 +36,7 @@ C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 
 keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
     "pass", "continue", "break", "def", "local", "global", "nonlocal", "return",
-    "and", "or", "as"}
+    "and", "or", "as", "class"}
 ops = set("*()-+=[]{},.<>/:|&")
 bools = {"True", "False", "None", "not"}
 valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
