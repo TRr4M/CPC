@@ -196,8 +196,20 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
 def print_result(r: str):
     y, x = curses.getsyx()
-    # FIXME account for lines that wrap
-    stdscr.addstr(max(curses.LINES - r.count("\n") - 1, len(text_buffer) + 1), 0, str(r), curses.A_BOLD | curses.A_REVERSE)
+    l = r.split("\n")
+    i = 0
+    cols = curses.COLS - 1
+    while i < len(l):
+        if len(l[i]) > cols:
+            l.insert(i + 1, l[i][cols:])
+            l[i] = l[i][:cols]
+        i += 1
+    start = max(curses.LINES - len(l), len(text_buffer) + 1)
+    max_printable_lines = curses.LINES - len(text_buffer) - 2
+    if len(l) > max_printable_lines:
+        stdscr.addstr(start, 0, "...\n" + "\n".join(l[-max_printable_lines:]), curses.A_BOLD | curses.A_REVERSE)
+    else:
+        stdscr.addstr(start, 0, "\n".join(l), curses.A_BOLD | curses.A_REVERSE)
     stdscr.move(y, x)
     curses.setsyx(y, x)
 
