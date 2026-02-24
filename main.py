@@ -3,8 +3,10 @@ from contextlib import redirect_stdout
 import curses
 import threading
 import math
+import random
 
 default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e"]}
+default_locs.update({"random": random, "math": math})
 
 stdscr = curses.initscr()
 curses.start_color()
@@ -39,12 +41,17 @@ keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except
     "and", "or", "as", "class"}
 ops = set("*()-+=[]{},.<>/:|&")
 bools = {"True", "False", "None", "not"}
+class_names: set[str] = {"int", "bool", "str", "list", "dict", "set", "tuple",
+    "random", "math", "range", "Exception", "float"}
 valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
 valid_name_chars = valid_name_start.union(set("0123456789"))
 
 def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
     i = 0
-    class_names: set[str] = set()
+    _class_names = class_names.copy()
+    _function_names = set()
+    next_is_class = False
+    next_is_func = False
 
     def string(fstring: bool = False):
         nonlocal i
@@ -72,7 +79,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
         i = j
 
     def default(end=None):
-        nonlocal i
+        nonlocal i, next_is_class, next_is_func
         while i < len(text) and text[i] != end:
             # Whitespace
             if text[i] in " \n\t":
@@ -82,6 +89,8 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
             # Numbers
             if text[i] in "0123456789":
+                next_is_class = False
+                next_is_func = False
                 j = i
                 while j < len(text) and text[j] in "0123456789.":
                     j += 1
@@ -91,9 +100,13 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
             # Strings
             if text[i] == '"' or text[i] == "'":
+                next_is_class = False
+                next_is_func = False
                 string()
                 continue
             if i < len(text) - 1 and (text[i:i+2] == "f'" or text[i:i+2] == 'f"'):
+                next_is_class = False
+                next_is_func = False
                 scr.addstr("f", modifier | C_SPECIAL)
                 i += 1
                 string(True)
@@ -109,6 +122,8 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                     found_op = True
                     break
             if found_op:
+                next_is_class = False
+                next_is_func = False
                 continue
 
             if text[i] in valid_name_start:
@@ -119,22 +134,42 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
                 # Keywords
                 if word in keywords:
+                    next_is_class = False
+                    next_is_func = False
                     scr.addstr(word, modifier | C_KEYWORD)
+                    if word == "def":
+                        next_is_func = True
+                    elif word == "class":
+                        next_is_class = True
                     continue
 
                 # Bools
                 if word in bools:
+                    next_is_class = False
+                    next_is_func = False
                     scr.addstr(word, modifier | C_BOOL)
                     continue
 
-                # Functions
-                if i < len(text) and text[i] == "(":
-                    scr.addstr(word, modifier | C_FUNC)
+                # Classes
+                if next_is_class:
+                    _class_names.add(word)
+                    next_is_class = False
+                if word in _class_names:
+                    next_is_func = False
+                    scr.addstr(word, modifier | C_CLASS)
                     continue
 
-                # Classes
-                if word in class_names:
-                    scr.addstr(word, modifier | C_CLASS)
+                # Functions
+                if next_is_func:
+                    _function_names.add(word)
+                    next_is_func = False
+                if word in _function_names:
+                    scr.addstr(word, modifier | C_FUNC)
+                    continue
+                if i < len(text) and text[i] == "(":
+                    next_is_class = False
+                    next_is_func = False
+                    scr.addstr(word, modifier | C_FUNC)
                     continue
 
                 # Variables
@@ -143,6 +178,8 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
             # Comments
             if text[i] == "#":
+                next_is_class = False
+                next_is_func = False
                 j = i
                 while j < len(text) and text[j] != "\n":
                     j += 1
