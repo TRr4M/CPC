@@ -1,3 +1,4 @@
+import subprocess
 from io import StringIO
 from contextlib import redirect_stdout
 import curses
@@ -38,7 +39,7 @@ C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 
 keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
     "pass", "continue", "break", "def", "local", "global", "nonlocal", "return",
-    "and", "or", "as", "class"}
+    "and", "or", "as", "class", "from", "with"}
 ops = set("*()-+=[]{},.<>/:|&")
 bools = {"True", "False", "None", "not"}
 class_names: set[str] = {"int", "bool", "str", "list", "dict", "set", "tuple",
@@ -92,7 +93,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                 next_is_class = False
                 next_is_func = False
                 j = i
-                while j < len(text) and text[j] in "0123456789.":
+                while j < len(text) and text[j] in "0123456789.x":
                     j += 1
                 scr.addstr(text[i:j], modifier | C_NUM)
                 i = j
@@ -139,7 +140,8 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                     scr.addstr(word, modifier | C_KEYWORD)
                     if word == "def":
                         next_is_func = True
-                    elif word == "class":
+                    # FIXME ignore import if from before
+                    elif word in {"class", "import", "from"}:
                         next_is_class = True
                     continue
 
@@ -154,7 +156,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                 if next_is_class:
                     _class_names.add(word)
                     next_is_class = False
-                if word in _class_names:
+                if word in _class_names: # FIXME ignore if . before
                     next_is_func = False
                     scr.addstr(word, modifier | C_CLASS)
                     continue
@@ -163,7 +165,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
                 if next_is_func:
                     _function_names.add(word)
                     next_is_func = False
-                if word in _function_names:
+                if word in _function_names: # FIXME ignore if . before
                     scr.addstr(word, modifier | C_FUNC)
                     continue
                 if i < len(text) and text[i] == "(":
@@ -308,6 +310,18 @@ def main(stdscr: curses.window):
                     text_buffer[y] += text_buffer.pop(y + 1)
             else:
                 text_buffer[y] = text_buffer[y][0:x] + text_buffer[y][x + 1:]
+        elif c == 0x16:
+            content = subprocess.check_output("wl-paste", shell=True, text=True).split("\n")[:-1]
+            text_buffer[y] = text_buffer[y][0:x] + content[0] + text_buffer[y][x:]
+            x += len(content[0])
+            for line in content[1:]:
+                roll_over = text_buffer[y][x:]
+                text_buffer[y] = text_buffer[y][0:x]
+                y += 1
+                if y >= len(text_buffer):
+                    text_buffer.append("")
+                text_buffer[y] = roll_over + text_buffer[y]
+                x = len(roll_over)
         elif c == ord("\t"):
             text_buffer[y] = text_buffer[y][0:x] + "    " + text_buffer[y][x:]
             x += 4
