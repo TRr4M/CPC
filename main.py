@@ -6,8 +6,8 @@ import threading
 import math
 import random
 
-default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e"]}
-default_locs.update({"random": random, "math": math})
+default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e", "log"]}
+default_locs.update({"random": random, "math": math, "ln": lambda x : math.log(x, math.e)})
 
 stdscr = curses.initscr()
 curses.start_color()
