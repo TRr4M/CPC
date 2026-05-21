@@ -52,7 +52,7 @@ _function_names: set[str] = set()
 _variable_names: set[str] = set()
 
 def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
-    global _class_names, _function_names
+    global _class_names, _function_names, _variable_names
     i = 0
     _class_names = class_names.copy()
     _function_names = {"sin", "cos", "tan", "pow", "floor", "ceil", "log", "print", "ln"}
@@ -182,6 +182,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
 
                 # Variables
                 scr.addstr(word, modifier | C_VAR)
+                _variable_names.add(word)
                 continue
 
             # Comments
@@ -252,6 +253,9 @@ def try_complete(s: str) -> str | None:
     for i in _class_names:
         if i != s and i.startswith(s):
             return i
+    for i in keywords:
+        if i != s and i.startswith(s):
+            return i
     return None
 
 x = 0
@@ -259,13 +263,14 @@ y = 0
 
 def tab_completion() -> str | None:
     i = 1
-    ls = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789")
-    while x - i >= 0 and text_buffer[y][x - i] in ls:
+    while x - i >= 0 and text_buffer[y][x - i] in valid_name_chars:
         i += 1
     i -= 1
     if i == 0:
         return None
     s = text_buffer[y][x - i:x]
+    if s[0] not in valid_name_start:
+        return None
     c = try_complete(s)
     if c is None:
         return None
