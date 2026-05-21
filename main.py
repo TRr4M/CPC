@@ -47,10 +47,16 @@ class_names: set[str] = {"int", "bool", "str", "list", "dict", "set", "tuple",
 valid_name_start = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
 valid_name_chars = valid_name_start.union(set("0123456789"))
 
+_class_names: set[str] = set()
+_function_names: set[str] = set()
+_variable_names: set[str] = set()
+
 def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
+    global _class_names, _function_names
     i = 0
     _class_names = class_names.copy()
-    _function_names = set()
+    _function_names = {"sin", "cos", "tan", "pow", "floor", "ceil", "log", "print", "ln"}
+    _variable_names = {"pi", "e"}
     next_is_class = False
     next_is_func = False
 
@@ -236,9 +242,37 @@ def run():
     thread = threading.Thread(target=target)
     thread.start()
 
+def try_complete(s: str) -> str | None:
+    for i in _variable_names:
+        if i != s and i.startswith(s):
+            return i
+    for i in _function_names:
+        if i != s and i.startswith(s):
+            return i
+    for i in _class_names:
+        if i != s and i.startswith(s):
+            return i
+    return None
+
+x = 0
+y = 0
+
+def tab_completion() -> str | None:
+    i = 1
+    ls = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789")
+    while x - i >= 0 and text_buffer[y][x - i] in ls:
+        i += 1
+    i -= 1
+    if i == 0:
+        return None
+    s = text_buffer[y][x - i:x]
+    c = try_complete(s)
+    if c is None:
+        return None
+    return c[len(s):]
+
 def main(stdscr: curses.window):
-    x = 0
-    y = 0
+    global x, y
 
     def re_render():
         stdscr.clear()
@@ -304,6 +338,8 @@ def main(stdscr: curses.window):
             else:
                 text_buffer[y] = text_buffer[y][0:x - 1] + text_buffer[y][x:]
                 x -= 1
+        elif c == curses.KEY_RESIZE:
+            pass
         elif c == 330: # DELETE
             if x == len(text_buffer[y]):
                 if y < len(text_buffer) - 1:
@@ -323,8 +359,14 @@ def main(stdscr: curses.window):
                 text_buffer[y] = roll_over + text_buffer[y]
                 x = len(roll_over)
         elif c == ord("\t"):
-            text_buffer[y] = text_buffer[y][0:x] + "    " + text_buffer[y][x:]
-            x += 4
+            s = tab_completion()
+            if s is None:
+                n = 4 - (x % 4)
+                text_buffer[y] = text_buffer[y][0:x] + (" " * n) + text_buffer[y][x:]
+                x += n
+            else:
+                text_buffer[y] = text_buffer[y][0:x] + s + text_buffer[y][x:]
+                x += len(s)
         else:
             text_buffer[y] = text_buffer[y][0:x] + chr(c) + text_buffer[y][x:]
             x += 1
