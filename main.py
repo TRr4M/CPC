@@ -6,7 +6,7 @@ import threading
 import math
 import random
 
-default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e", "log"]}
+default_locs = {i: eval(f"math.{i}") for i in ["pi", "sin", "cos", "tan", "pow", "floor", "ceil", "e", "log", "sqrt"]}
 default_locs.update({"random": random, "math": math, "ln": lambda x : math.log(x, math.e)})
 
 stdscr = curses.initscr()
@@ -55,7 +55,7 @@ def print_highlighted(scr: curses.window, text: str, modifier: int = 0):
     global _class_names, _function_names, _variable_names
     i = 0
     _class_names = class_names.copy()
-    _function_names = {"sin", "cos", "tan", "pow", "floor", "ceil", "log", "print", "ln"}
+    _function_names = {"sin", "cos", "tan", "pow", "floor", "ceil", "log", "print", "ln", "sqrt"}
     _variable_names = {"pi", "e"}
     next_is_class = False
     next_is_func = False
