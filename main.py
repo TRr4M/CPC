@@ -40,7 +40,7 @@ C_COMMENT = curses.color_pair(10) | curses.A_ITALIC
 keywords = {"import", "in", "for", "if", "while", "else", "elif", "try", "except",
     "pass", "continue", "break", "def", "local", "global", "nonlocal", "return",
     "and", "or", "as", "class", "from", "with"}
-ops = set("*()-+=[]{},.<>/:|&")
+ops = set("*()-+=[]{},.<>/:|&%")
 bools = {"True", "False", "None", "not"}
 class_names: set[str] = {"int", "bool", "str", "list", "dict", "set", "tuple",
     "random", "math", "range", "Exception", "float"}
